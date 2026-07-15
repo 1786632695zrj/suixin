@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#ffffff"/>
+  <!-- 床 -->
+  <rect x="64" y="332" width="384" height="32" fill="#1a1a1a" rx="4"/>
+  <line x1="80" y1="364" x2="80" y2="408" stroke="#1a1a1a" stroke-width="8"/>
+  <line x1="432" y1="364" x2="432" y2="408" stroke="#1a1a1a" stroke-width="8"/>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+  </pattern>
+  <rect x="96" y="304" width="320" height="32" fill="url(#grid)"/>
+  <!-- 狗 -->
+  <ellipse cx="256" cy="280" rx="100" ry="72" fill="#fff" stroke="#1a1a1a" stroke-width="6"/>
+  <ellipse cx="256" cy="240" rx="72" ry="60" fill="#fff" stroke="#1a1a1a" stroke-width="6"/>
+  <ellipse cx="200" cy="200" rx="22" ry="40" fill="#fff" stroke="#1a1a1a" stroke-width="6" transform="rotate(-25 200 200)"/>
+  <ellipse cx="312" cy="200" rx="22" ry="40" fill="#fff" stroke="#1a1a1a" stroke-width="6" transform="rotate(25 312 200)"/>
+  <ellipse cx="200" cy="206" rx="10" ry="20" fill="#ff9aae" transform="rotate(-25 200 206)"/>
+  <ellipse cx="312" cy="206" rx="10" ry="20" fill="#ff9aae" transform="rotate(25 312 206)"/>
+  <circle cx="232" cy="248" r="7" fill="#1a1a1a"/>
+  <circle cx="280" cy="248" r="7" fill="#1a1a1a"/>
+  <circle cx="234" cy="246" r="2" fill="#fff"/>
+  <circle cx="282" cy="246" r="2" fill="#fff"/>
+  <ellipse cx="256" cy="266" rx="10" ry="7" fill="#1a1a1a"/>
+  <path d="M252 274 Q256 280 260 274" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- 月亮 -->
+  <path d="M400 96 a 36 36 0 1 0 24 50 a 28 28 0 1 1 -24 -50 z" fill="#1a1a1a"/>
+  <!-- 星星 -->
+  <path d="M120 120 l6 16 l17 0 l-13 10 l5 16 l-15 -10 l-15 10 l5 -16 l-13 -10 l17 0 z" fill="#1a1a1a"/>
+  <path d="M80 200 l4 10 l11 0 l-9 7 l3 10 l-9 -6 l-9 6 l3 -10 l-9 -7 l11 0 z" fill="#1a1a1a"/>
+  <path d="M432 220 l3 8 l9 0 l-7 6 l2 8 l-7 -5 l-7 5 l2 -8 l-7 -6 l9 0 z" fill="#1a1a1a"/>
+  <!-- 顶部 "记" -->
+  <text x="256" y="120" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="56" font-weight="700" fill="#5cd3d3">记</text>
+</svg>
