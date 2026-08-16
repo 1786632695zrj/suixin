@@ -149,6 +149,15 @@ main{max-width:560px;margin:0 auto;padding:16px 16px 24px}
 .subtle{color:var(--ink-3);font-size:12px}
 
 /* ============ Record 页 ============ */
+.rec-date-bar{
+  display:flex;align-items:center;gap:8px;padding:11px 14px;margin-bottom:14px;
+  background:#fff;border:1.5px solid #e8e8e8;border-radius:14px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.03);transition:border .2s,background .2s;
+}
+.rec-date-bar:hover{border-color:#1a1a1a}
+.rec-date-ico{font-size:15px}
+#rec-date-text{font-size:15px;font-weight:600;color:#1a1a1a}
+.rec-date-hint{font-size:11px;color:var(--ink-3);margin-left:auto}
 .record-input{
   width:100%;min-height:160px;border:1px dashed #d8dadc;border-radius:14px;
   padding:14px;font-size:15px;line-height:1.7;background:var(--soft);resize:none;
@@ -604,8 +613,13 @@ nav.tabbar button .badge{
 
   <!-- ============ 记录页 ============ -->
   <section class="view" id="view-record">
+    <div class="rec-date-bar" id="rec-date-bar" title="点击切换日期，可补记往日">
+      <span class="rec-date-ico">📅</span>
+      <span id="rec-date-text">今天</span>
+      <span class="rec-date-hint">点击切换日期 · 可补记往日</span>
+    </div>
     <div class="card">
-      <div class="card-title"><span class="dot"></span>今天，我想说…</div>
+      <div class="card-title"><span class="dot"></span><span id="rec-title-text">今天，我想说…</span></div>
       <textarea class="record-input" id="record-input" placeholder="随手记下工作、心情、灵感…
 比如：今天完成项目方案，跟同事开了2小时会，下午茶喝了杯拿铁 ☕
 明天记得：1. 跟客户确认需求 2. 把PPT再改一版
@@ -627,7 +641,7 @@ nav.tabbar button .badge{
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="dot"></span>今天的记录 <span class="subtle" id="record-count"></span></div>
+      <div class="card-title"><span class="dot"></span><span id="rec-list-title-text">今天的记录</span> <span class="subtle" id="record-count"></span></div>
       <div id="record-list"></div>
     </div>
 
@@ -940,11 +954,17 @@ nav.tabbar button .badge{
 
   /* ---------- 记录页渲染 ---------- */
   function renderRecord(){
+    const d = new Date(state.curDate + "T00:00:00");
+    const isToday = state.curDate === todayKey();
+    const dateLabel = isToday ? "今天" : `${d.getMonth()+1}月${d.getDate()}日`;
+    $("#rec-date-text").textContent = dateLabel;
+    $("#rec-title-text").textContent = isToday ? "今天，我想说…" : `${d.getMonth()+1}月${d.getDate()}日，我想说…`;
+    $("#rec-list-title-text").textContent = isToday ? "今天的记录" : `${d.getMonth()+1}月${d.getDate()}日的记录`;
     const list = $("#record-list");
     const recs = getRecords(state.curDate);
     $("#record-count").textContent = recs.length ? `· ${recs.length} 条` : "";
     if(!recs.length){
-      list.innerHTML = `<div class="summary-empty"><div class="ico">📝</div><div class="hint">还没有记录，<br>在上面写下第一条吧</div></div>`;
+      list.innerHTML = `<div class="summary-empty"><div class="ico">📝</div><div class="hint">${dateLabel}还没有记录，<br>在上面写下第一条吧</div></div>`;
       return;
     }
     list.innerHTML = recs.slice().sort((a,b)=>b.time-a.time).map(r=>`
@@ -1991,14 +2011,16 @@ ${text}`;
       for(let d=1;d<=nextDays;d++) html+=`<div class="day other-month">${d}</div>`;
       grid.innerHTML=html;
       grid.querySelectorAll(".day:not(.other-month)").forEach(el=>{
-        el.onclick=()=>{ state.curDate=el.dataset.d; save(); render(); closeMiniCal(); };
+        el.onclick=()=>{ state.curDate=el.dataset.d; state._followToday=(el.dataset.d===todayKey()); save(); render(); closeMiniCal(); };
       });
     }
     $("#cal-prev").onclick=e=>{ e.stopPropagation(); _calYM.m--; if(_calYM.m<0){_calYM.m=11;_calYM.y--;} renderMiniCal(); };
     $("#cal-next").onclick=e=>{ e.stopPropagation(); _calYM.m++; if(_calYM.m>11){_calYM.m=0;_calYM.y++;} renderMiniCal(); };
     $("#date-pill").onclick = openDatePicker;
+    // 记录页顶部日期条：点击同样打开日期选择器（stopPropagation 避免被全局关闭逻辑立刻收起）
+    $("#rec-date-bar").onclick = (e)=>{ e.stopPropagation(); openDatePicker(); };
     // 回到今天
-    $("#btn-today").onclick = ()=>{ state.curDate = todayKey(); render(); };
+    $("#btn-today").onclick = ()=>{ state.curDate = todayKey(); state._followToday = true; render(); };
 
     // 随手记
     $("#btn-add-note").onclick = addNote;
@@ -2235,10 +2257,15 @@ ${text}`;
   if(!state.data.meta.seedLoaded) applySeed(false); // 首次打开自动载入工作周报
   bindEvents();
   switchView("home");
-  // 每天 0 点自动切日期（监听）
+  // 仅在“跟随今天”时，跨零点自动切到新的一天；手动选了历史/未来日期则不自动拽回今天
+  state._lastToday = todayKey();
+  state._followToday = true;
   setInterval(()=>{
     const k = todayKey();
-    if(k!==state.curDate){ state.curDate = k; render(); }
+    if(k !== state._lastToday){
+      state._lastToday = k;
+      if(state._followToday){ state.curDate = k; render(); }
+    }
   }, 60*1000);
 })();
 </script>
