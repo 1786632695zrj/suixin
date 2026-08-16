@@ -1,7 +1,7 @@
 /* 缓存策略：导航类请求（index.html）走「网络优先」，静态资源走「缓存优先」
    - 保证每次刷新都能拿到最新的 index.html（避免改完代码还看旧版）
    - 静态图标/清单仍走缓存，保证离线可用 */
-const CACHE = "suixin-v11";
+const CACHE = "suixin-v12";
 const STATIC = [
   "./manifest.webmanifest",
   "./icon.svg",
