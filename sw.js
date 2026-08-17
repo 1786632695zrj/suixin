@@ -1,57 +1,24 @@
-/* ç¼“å­˜ç­–ç•¥ï¼šå¯¼èˆªç±»è¯·æ±‚ï¼ˆindex.htmlï¼‰èµ°ã€Œç½‘ç»œä¼˜å…ˆã€ï¼Œé™æ€èµ„æºèµ°ã€Œç¼“å­˜ä¼˜å…ˆã€
-   - ä¿è¯æ¯æ¬¡åˆ·æ–°éƒ½èƒ½æ‹¿åˆ°æœ€æ–°çš„ index.htmlï¼ˆé¿å…æ”¹å®Œä»£ç è¿˜çœ‹æ—§ç‰ˆï¼‰
-   - é™æ€å›¾æ ‡/æ¸…å•ä»èµ°ç¼“å­˜ï¼Œä¿è¯ç¦»çº¿å¯ç”¨ */
-const CACHE = "suixin-v13";
-const STATIC = [
-  "./manifest.webmanifest",
-  "./icon.svg",
-  "./icon-192.png",
-  "./icon-512.png"
-];
-
-self.addEventListener("install", e => {
+/* ç¼“å­˜ç­–ç•¥ï¼šå¯:"*¹ìnú+~k.ûÈ†–æFW‚æ‡FÖÎò'¢ÖÃŽ3žöGžîs’òc–#Ž7¼Œé™æ€èµ„æºèµ°ã€Œç¼‘kf9/&9ab8à#BˆH9)ÞŠøjøÚ²‡–"Ö–°éƒ½èƒ½æ‹½b,9§ 9¥¬9æ¡[™^š[;ï":`nXXÞiKžZèÎKº>z‹cžr/š^Ÿž&#¾ò$(€€€´ƒ¦vgš–næ ‡-®!ycey.ãz-l9ï$ZÙŽò3’è¯ç¦¹î¯XúÞR €¨¼)½¹ÍÐ!€ô€‰ÍÕ¥á¥¸µØÄÐˆì)½¹ÍÐMQQ%€ôl(€€ˆ¸½µ…¹¥™•ÍÐ¹Ý•‰µ…¹¥™•ÍÐˆ°(€€ˆ¸½¥½¸¹ÍÙœˆ°(€€ˆ¸½¥½¸´ÄäÈ¹Á¹œˆ°(€€ˆ¸½¥½¸´ÔÄÈ¹Á¹œˆ)tì()Í•±˜¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰¥¹ÍÑ…±°ˆ°”€ô {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(STATIC))
-      .then(() => self.skipWaiting())
-  );
-});
+      .then(c =Ë˜Y[
+ÕUPÊJBˆ[Š
 
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== "GET") return;
-  if (url.origin !== location.origin) return;
-
-  // å¯¼èˆªè¯·æ±‚ï¼ˆæ‰“å¼€é¡µé¢ï¼‰=> ç½‘ç»œä¼˜å…ˆï¼Œå¤±è´¥å›žé€€ç¼“å­˜
-  if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request)
-        .then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE).then(c => c.put("./index.html", copy));
-          return resp;
-        })
-        .catch(() => caches.match("./index.html").then(r => r || caches.match("./")))
-    );
-    return;
-  }
-
-  // å…¶ä»–é™æ€èµ„æº => ç¼“å­˜ä¼˜å…ˆ
-  e.respondWith(
-    caches.match(e.request).then(r =>
-      r || fetch(e.request).then(resp => {
-        const copy = resp.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-        return resp;
-      }).catch(() => r)
-    )
-  );
-});
+HB6VÆbç6¶—v—F–ær‚’¢“°§Ò“° §6VÆbæFDWfVçDÆ—7FVæW"‚&7F—fFR"ÂRÐì(€”¹Ý…¥ÑU¹Ñ¥° (€€€…¡•Ì¹­•åÌ ¤(€€€€€€¹Ñ¡•¸¡­•åÌ€ôøAÉ½µ¥Í”¹…±°¡­•åÌ¹™¥±Ñ•È¡¬€ô k !== CACHE).map(k => caches.delete(k))))
+      .then(() =Ù[‹˜ÛY[Ë˜ÛZ[J
+JBˆ
+NÂŸJNÂ‚œÙ[‹˜Y]™[\Ý[™\Š™™]Ú‹HOˆÂˆÛÛœÝ\›H™]ÈT“
+Kœ™\]Y\Ý\›
+NÂˆYˆ
+Kœ™\]Y\Ý›Y]ÙOOH‘ÑUŠH™]\›ŽÂˆYˆ
+\››ÜšYÚ[ˆOOHØØ][Û‹›ÜšYÚ[ŠH™]\›ŽÂ‚ˆËÈ9kï:"*º+íù¬`»ï"9¢dùo :hmzgh»ï"OOˆ9ïdyîç9/&9ab;ï#9i,z-)yfçº` 9ï$ùkfˆYˆ
+Kœ™\]Y\Ý›[ÙHOOH›˜]šYØ]HŠHÂˆKœ™\ÜÛ™Ú]
+ˆ™]Ú
+Kœ™\]Y\Ý
+Bˆ[Š™\ÜB°¢6öç7B6÷’Ò&W7æ6ÆöæR‚“°¢66†W2æ÷Vâ„44„R’çF†Vâ†2ÐŒ¹ÁÕÐ ˆ¸½¥¹‘•à¹¡Ñµ°ˆ°½Áä¤¤ì(€€€€€€€€€É•ÑÕÉ¸É•ÍÀì(€€€€€€€ô¤(€€€€€€€€¹…Ñ   ¤€ôø…¡•Ì¹µ…Ñ  ˆ¸½¥¹‘•à¹¡Ñµ°ˆ¤¹Ñ¡•¸¡È€ôøÈñð…¡•Ì¹µ…Ñ  ˆ¸¼ˆ¤¤¤(€€€€¤ì(€€€É•ÑÕÉ¸ì(€ô((€€¼¼ƒ–Û’î[¦vgš¢Öšê@€ô ç¼‘kf9/&9abˆKœ™\ÜÛ™Ú]
+ˆØXÚ\Ë›X]Ú
+Kœ™\]Y\Ý
+K[ŠˆO‚ˆˆ™]Ú
+Kœ™\]Y\Ý
+K[Š™\ÜOˆÂˆÛÛœÝÛÜHH™\Ü˜ÛÛ™J
+NÂˆØXÚ\Ë›Ü[ŠÐPÒJK[ŠÈB2çWB†Rç&WVW7BÂ6÷’’“°¢&WGW&â&W7°¢Ò’æ6F6‚‚‚’Óâ"¢¢“°§Ò“°
