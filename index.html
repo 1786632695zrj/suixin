@@ -646,9 +646,6 @@ nav.tabbar button .badge{
       <div id="record-list"></div>
     </div>
 
-    <button class="gen-btn" id="btn-gen" style="margin-top:16px">
-      <span id="gen-text">生成今日总结 + 复盘</span>
-    </button>
   </section>
 
   <!-- ============ 总结复盘 ============ -->
@@ -692,7 +689,7 @@ nav.tabbar button .badge{
   <section class="view" id="view-settings">
     <div class="card">
       <div class="card-title"><span class="dot"></span>接入 AI 大模型（推荐）</div>
-      <p class="subtle" style="margin:0 0 12px;line-height:1.7">填了 Key 之后，<b>「AI 伙伴」对话</b>和<b>「今日总结/复盘」</b>都会由大模型生成，回答更聪明；不填也能用（本地简易规则）。<br>推荐 <b>DeepSeek</b>：去 <b>platform.deepseek.com</b> 注册 → 创建 API Key（sk- 开头）→ 填到下面。Base URL 填 <b>https://api.deepseek.com/v1</b>，模型填 <b>deepseek-chat</b>。Key 只存在本机浏览器，不会上传。</p>
+      <p class="subtle" style="margin:0 0 12px;line-height:1.7">填了 Key 之后，<b>「AI 伙伴」对话</b>和<b>「一键生成周报」</b>会由大模型生成，回答更聪明；不填也能用（本地简易规则）。<br>推荐 <b>DeepSeek</b>：去 <b>platform.deepseek.com</b> 注册 → 创建 API Key（sk- 开头）→ 填到下面。Base URL 填 <b>https://api.deepseek.com/v1</b>，模型填 <b>deepseek-chat</b>。Key 只存在本机浏览器，不会上传。</p>
       <div class="setting-row">
         <div>
           <div class="lbl">API Base URL</div>
@@ -1165,14 +1162,6 @@ nav.tabbar button .badge{
         </div>`;
     }
 
-    // 生成今日总结按钮（有记录时显示，可生成 / 重新生成）
-    if(recs.length){
-      const hasSum = !!sum;
-      html += `<button class="gen-btn" id="btn-gen-day" style="margin-top:14px">
-        <span id="gen-day-text">${hasSum?"重新生成今日总结 + 复盘":"生成今日总结 + 复盘"}</span>
-      </button>`;
-    }
-
     if(!recs.length && !sum){
       html += `<div class="card"><div class="summary-empty"><div class="ico">📝</div><div class="hint">这一天还没有内容<br>去「记录」页写下，或手动添加总结/复盘</div></div></div>`;
     }
@@ -1188,7 +1177,6 @@ nav.tabbar button .badge{
     bindSummaryDelete(c);
     bindAddSummary(c);
     bindBtnGenWeek(c);
-    bindBtnGenDay(c);
   }
 
   /* ---------- 本周分块视图 ---------- */
@@ -1377,44 +1365,6 @@ nav.tabbar button .badge{
     };
     bar.querySelector('[data-cancel]').onclick = ()=> renderSummary();
   }
-  function bindBtnGenDay(root){
-    const b = root.querySelector('#btn-gen-day');
-    if(b) b.onclick = ()=> onGenerateDay();
-  }
-  function onGenerateDay(){
-    const recs = getRecords(state.curDate);
-    if(!recs.length){ toast("这一天还没记录，先去「记录」页写点什么"); return; }
-    const text = recs.map(r=>r.text).join("\n");
-    const tags = [...new Set(recs.flatMap(r=>r.tags||[]))];
-    const btn = $("#btn-gen-day");
-    const txt = $("#gen-day-text");
-    if(btn) btn.disabled = true;
-    if(txt) txt.innerHTML = '<span class="spin"></span> 正在生成…';
-    (async ()=>{
-      try{
-        const cfg = state.data.config || {};
-        let result;
-        if(cfg.key && cfg.baseurl){
-          try{ result = await remoteSummarize(text, tags); }
-          catch(e){ console.warn(e); toast("AI 调用失败，已退回本地总结"); result = localSummarize(text, tags); }
-        } else {
-          await new Promise(r=>setTimeout(r,400));
-          result = localSummarize(text, tags);
-        }
-        state.data.summary[state.curDate] = {
-          ...result,
-          generatedAt: Date.now(),
-          source: (cfg.key && cfg.baseurl) ? "ai" : "local"
-        };
-        save(); renderSummary(); toast("已生成 ✨");
-      }catch(e){
-        console.error(e); toast(e.message || "生成失败");
-      }finally{
-        if(btn) btn.disabled = false;
-        if(txt) txt.textContent = "重新生成今日总结 + 复盘";
-      }
-    })();
-  }
 
   /* ---------- Todo 渲染 ---------- */
   function renderTodo(){
@@ -1529,116 +1479,6 @@ nav.tabbar button .badge{
     if(state.view==="todo") renderTodo();
     if(state.view==="settings") renderSettings();
     updateBadges();
-  }
-
-  /* ---------- 本地规则总结引擎 ---------- */
-  function localSummarize(text, tags){
-    // 拆分成句
-    const sents = splitSentences(text);
-    // 分类
-    const buckets = { work:[], thinking:[], feel:[], grow:[] };
-    sents.forEach(s=>{
-      const cat = classify(s, tags);
-      buckets[cat].push(s);
-    });
-    const summary = [];
-    const pushItems = (cat, arr, n)=>{
-      arr.slice(0,n).forEach(t=> summary.push({cat, text: clean(t)}));
-    };
-    if(buckets.work.length) pushItems("work", buckets.work, 3);
-    if(buckets.thinking.length) pushItems("thinking", buckets.thinking, 2);
-    if(buckets.feel.length) pushItems("feel", buckets.feel, 2);
-    if(buckets.grow.length) pushItems("grow", buckets.grow, 2);
-
-    // 复盘：按 5 个维度，根据当天记录内容挑相关维度
-    const review = [];
-    const hit = (re)=> re.test(text);
-    if(hit(/完成|搞定|交付|上线|通过|解决|突破|做完|达成|实现|终于|学会|掌握|收获|提交|发布|签|成交|修复|优化|推进|闭环/))
-      review.push({cat:"achievement", text:"小成就：今天你推进/完成了一件事，给自己记一笔小小的肯定。"});
-    if(hit(/想法|灵感|点子|主意|突然|创意|试试|机会|想|如果|或许|说不定|好奇/))
-      review.push({cat:"idea", text:"灵感碎片：今天冒出的好点子先捕捉下来，晚上复盘值得展开。"});
-    if(hit(/累|疲惫|困|睡|运动|跑步|健身|身体|精力|头痛|不舒服|健康|吃|胃口|熬夜|休息|锻炼|瑜伽|散步|肩|腰/))
-      review.push({cat:"body", text:"身体信号：关注今天的精力/睡眠/运动，身体给你的反馈最真实。"});
-    if(hit(/开心|难过|焦虑|放松|平静|幸福|失望|兴奋|崩溃|emo|郁闷|烦|暖心|孤单|情绪|心情|委屈|沮丧|治愈|充实|生气/))
-      review.push({cat:"emotion", text:"情绪波动：记下今天为什么开心/沮丧，以及情绪背后的真实需求。"});
-    if(hit(/决定|选择|后悔|应该|如果当时|决策|取舍|权衡|结果|复盘|当时|下次|改|调整|方案|选/))
-      review.push({cat:"decision", text:"决策与结果：记一个今天的关键决定和结果，复盘思路避免重复踩坑。"});
-    if(!review.length && text.length>10){
-      review.push({cat:"achievement", text:"小成就：哪怕很小，今天也一定有值得肯定的瞬间，写下来。"});
-    }
-    return { summary, review };
-  }
-
-  function splitSentences(text){
-    return text.replace(/\r/g,"")
-      .split(/[\n。！？!?；;]+/)
-      .map(s=>s.trim())
-      .filter(Boolean);
-  }
-  function classify(sent, tags){
-    const t = sent.toLowerCase();
-    // 显式 tag 优先
-    if(tags && tags.length){
-      if(tags.includes("工作")||tags.includes("会议")) return "work";
-      if(tags.includes("学习")) return "thinking";
-      if(tags.includes("情绪")) return "feel";
-      if(tags.includes("想法")) return "thinking";
-    }
-    if(/会议|项目|方案|客户|需求|代码|bug|上线|交付|同步|对齐|排期|文档|ppt|报告|测试|需求|接口|数据|迭代|需求|开发|设计|评审|会议|周报|日报|kpi|okr|会议|文档|ppt|汇报|邮件|周会|晨会|复盘|评审|上线|联调|修复|优化|跟|推进|项目|需求|任务|安排|排期|客户|对接|交付|测试|改/.test(sent)) return "work";
-    if(/想|觉得|思考|考虑|反思|为什么|如果|可能|假设|意味着/.test(sent)) return "thinking";
-    if(/开心|难过|累|疲惫|焦虑|放松|平静|开心|幸福|失望|兴奋|郁闷|崩溃|治愈|emo|快乐|郁闷|辛苦|紧绷|解压|丧|佛|烦|舒服|丧|爽|暖心|心疼|解压|温馨|孤单/.test(sent)) return "feel";
-    if(/学|第一次|尝试|突破|搞定|完成|进步|成长|新技能|踩坑|踩雷|收获|新发现|悟|解锁/.test(sent)) return "grow";
-    return "work";
-  }
-  function clean(s){ return s.replace(/^[\s,，。.;；:：\-—]+/,"").trim(); }
-
-  /* ---------- 远程 AI 总结 ---------- */
-  async function remoteSummarize(text, tags){
-    const { baseurl, key, model } = state.data.config || {};
-    if(!baseurl || !key){
-      throw new Error("请先在「设置」里填写 API Base URL 和 Key");
-    }
-    const url = baseurl.replace(/\/+$/,"") + "/chat/completions";
-    const sys = `你是一个克制的日记复盘伙伴。任务：
-1) 阅读用户当天的若干条记录，提炼 4-8 条「今日要点」，每条不超过 30 字。cat 取 work(工作)/thinking(思考)/feel(感受)/grow(成长)。
-2) 输出 3-5 条「复盘」，从下面 5 个维度挑选与当天记录最相关的（每条标 cat，并结合记录内容给一句可操作引导，不超过 40 字）：
-   - achievement 小成就：肯定今天的推进/完成
-   - idea 灵感碎片：捕捉好点子/想深入的问题
-   - body 身体信号：精力/睡眠/运动/健康反馈
-   - emotion 情绪波动：情绪背后的真实需求
-   - decision 决策与结果：关键决定与结果，避免重复犯错
-3) 严格按 JSON 返回，不要多余文字、不要 Markdown 代码块：
-{
-  "summary":[{"cat":"work|thinking|feel|grow","text":"..."}],
-  "review":[{"cat":"achievement|idea|body|emotion|decision","text":"..."}]
-}`;
-    const user = `【标签】${(tags||[]).join("、")||"无"}
-【记录】
-${text}`;
-    const body = {
-      model: model || "gpt-4o-mini",
-      temperature: 0.5,
-      messages:[
-        {role:"system", content: sys},
-        {role:"user", content: user}
-      ]
-    };
-    const resp = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+key },
-      body: JSON.stringify(body)
-    });
-    if(!resp.ok){
-      const t = await resp.text();
-      throw new Error("API 失败："+resp.status+" "+t.slice(0,200));
-    }
-    const data = await resp.json();
-    let content = data.choices?.[0]?.message?.content || "";
-    content = content.trim().replace(/^```json/i,"").replace(/```$/,"").trim();
-    let parsed;
-    try{ parsed = JSON.parse(content); }
-    catch(e){ throw new Error("AI 返回不是合法 JSON：\n"+content.slice(0,300)); }
-    return parsed;
   }
 
   /* ---------- 周报 AI 进展提取 ---------- */
@@ -1919,50 +1759,6 @@ ${text}`;
     }
   }
 
-  /* ---------- 生成按钮 ---------- */
-  async function onGenerate(){
-    const recs = getRecords(state.curDate);
-    if(!recs.length){ toast("今天还没记录哦"); switchView("record"); return; }
-    const text = recs.map(r=>r.text).join("\n");
-    const tags = [...new Set(recs.flatMap(r=>r.tags||[]))];
-    const btn = $("#btn-gen");
-    const txt = $("#gen-text");
-    if(!btn || !txt){ toast("生成按钮未就绪"); return; }
-    btn.disabled = true; txt.innerHTML = '<span class="spin"></span> 正在生成…';
-    try{
-      let result;
-      const cfg = state.data.config || {};
-      if(cfg.key && cfg.baseurl){
-        try{ result = await remoteSummarize(text, tags); }
-        catch(e){
-          console.warn(e);
-          toast("AI 调用失败，已退回本地总结");
-          result = localSummarize(text, tags);
-        }
-      } else {
-        // 模拟一点点思考时间，体验更好
-        await new Promise(r=>setTimeout(r,400));
-        result = localSummarize(text, tags);
-      }
-      state.data.summary[state.curDate] = {
-        ...result,
-        generatedAt: Date.now(),
-        source: (cfg.key && cfg.baseurl) ? "ai" : "local"
-      };
-      save();
-      state.summaryMode = "day";
-      $$(".stab").forEach(x=>x.classList.toggle("on", x.dataset.mode==="day"));
-      renderSummary();
-      toast("已生成 ✨ 去总结页查看");
-      switchView("summary");
-    }catch(e){
-      console.error(e);
-      toast(e.message || "生成失败");
-    }finally{
-      btn.disabled = false; txt.textContent = "重新生成总结 + 复盘";
-    }
-  }
-
   /* ---------- 一键生成周报 ---------- */
   async function generateWeekly(refKey){
     const {mon, sun} = weekRange(refKey);
@@ -2200,8 +1996,6 @@ ${text}`;
       toast("已保存 ✓" + extra);
     };
 
-    // 生成总结
-    $("#btn-gen").onclick = onGenerate;
 
     // Todo
     $("#btn-add-todo").onclick = addTodo;
@@ -2272,7 +2066,7 @@ ${text}`;
         $("#hint-text").innerHTML = `欢迎 👋<br><br>
         1) 在「记录」写下今天发生的事，加标签+图片<br>
         2) 包含「需要做XX」会自动加到「待办」<br>
-        3) 在「总结」一键生成今日总结 + 复盘<br><br>
+        3) 在「总结」手写今日总结 / 复盘，或一键生成周报<br><br>
         想要更聪明的总结？去「设置」填入 AI API（兼容 OpenAI 格式）。`;
         $("#modal-hint").classList.add("show");
         localStorage.setItem("diary.welcomed","1");
