@@ -1125,6 +1125,25 @@ nav.tabbar button .badge{
     renderDay(c);
   }
 
+  // 复用「记录」页的条目渲染（只读展示，含删除）—— 今日视图自动同步记录
+  function recEntriesHtml(recs){
+    if(!recs || !recs.length) return "";
+    return recs.slice().sort((a,b)=> b.time - a.time).map(r=>`
+      <div class="entry" data-id="${r.id}">
+        <div class="dot"></div>
+        <div class="body">
+          <p>${escapeHtml(r.text)}</p>
+          ${(r.images||[]).map(img=>`<img class="entry-img" src="${escapeHtml(img)}" onclick="openLightbox('${escapeHtml(img)}')" loading="lazy">`).join("")}
+          <div class="meta">
+            <span>${new Date(r.time).toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"})}</span>
+            ${(r.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}
+            <span class="del" data-del-rec="${r.id}" style="margin-left:auto">✕</span>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  }
+
   /* ---------- 今日视图：当日内容 + 一键生成周报 ---------- */
   function renderDay(c){
     const {mon, sun} = weekRange(state.curDate);
@@ -1151,10 +1170,12 @@ nav.tabbar button .badge{
     const sum = getSummary(curKey);
     const recs = getRecords(curKey);
     let html = `<div class="card"><div class="card-title"><span class="dot"></span>${wdName} · 本周每天</div>${strip}</div>`;
-    // 今日记录已在「记录」页可见，这里只给轻提示入口，避免重复展示
-    if(recs.length){
-      html += `<div class="rec-hint subtle">📝 本日有 ${recs.length} 条记录 · 去「记录」页查看 / 编辑</div>`;
-    }
+    // 今日记录：与「记录」页同源，自动同步展示（无需 AI 生成）
+    html += `
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:#5cd3d3"></span>${recTag} <span class="subtle">${mCur}月${dCurN}日 · 自动同步自「记录」</span></div>
+        ${recEntriesHtml(recs) || `<div class="hint subtle" style="padding:6px 0">今天还没有记录，去「记录」页写下，会在这里自动出现</div>`}
+      </div>`;
 
     // 当日总结 + 复盘 —— 支持修改 / 删除 / 添加
     if(sum){
@@ -1195,10 +1216,12 @@ nav.tabbar button .badge{
         </div>`;
     }
 
+    // 当无记录且无总结时，给出最近内容快捷入口（避免与上方记录卡重复提示）
     if(!recs.length && !sum){
       const recent = recentDaysWithContent(30).filter(r=>r.date!==curKey);
-      const recentHtml = recent.length ? `<div class="recent-hint" style="margin-top:12px">📅 你最近有内容：${recent.map(r=>`<span class="recent-chip" data-jump="${r.date}">${r.label}（${r.n}）</span>`).join("、")} — 点上方本周日期条或这里查看</div>` : "";
-      html += `<div class="card"><div class="summary-empty"><div class="ico">📝</div><div class="hint">这一天还没有内容<br>去「记录」页写下，或手动添加总结/复盘</div></div>${recentHtml}</div>`;
+      if(recent.length){
+        html += `<div class="recent-hint" style="margin-top:4px">📅 你最近有内容：${recent.map(r=>`<span class="recent-chip" data-jump="${r.date}">${r.label}（${r.n}）</span>`).join("、")} — 点击查看 / 补记</div>`;
+      }
     }
 
     // 一键生成周报（本周）
@@ -1213,6 +1236,13 @@ nav.tabbar button .badge{
     bindAddSummary(c);
     bindBtnGenWeek(c);
     $$(".recent-chip", c).forEach(ch=>{ ch.onclick = ()=>{ state.curDate = ch.dataset.jump; renderSummary(); }; });
+    $$("[data-del-rec]", c).forEach(b=>{
+      b.onclick = ()=>{
+        const id = b.dataset.delRec;
+        state.data.records[curKey] = getRecords(curKey).filter(x=>x.id!==id);
+        save(); renderSummary(); toast("已删除");
+      };
+    });
   }
 
   /* ---------- 本周分块视图 ---------- */
