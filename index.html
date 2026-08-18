@@ -192,6 +192,9 @@ main{max-width:560px;margin:0 auto;padding:16px 16px 24px}
 .entry .body .meta{font-size:11px;color:var(--ink-3);margin-top:6px;display:flex;gap:8px;align-items:center}
 .entry .body .meta .tag{background:var(--soft);padding:2px 6px;border-radius:4px}
 .entry .body .meta .del{color:var(--ink-3);font-size:16px;padding:0 4px;cursor:pointer}
+.entry .body .meta .edit{color:var(--ink-3);font-size:15px;padding:0 4px;cursor:pointer}
+.entry .body .meta .edit:hover{color:var(--ink)}
+.entry .body .meta .rec-actions .del:hover{background:rgba(255,90,90,.12);border-radius:6px}
 
 /* ============ 总结复盘页 ============ */
 .summary-empty{
@@ -384,6 +387,9 @@ main{max-width:560px;margin:0 auto;padding:16px 16px 24px}
 .gen-btn:disabled{opacity:.6}
 .gen-btn .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:rot .8s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
+.gen-mini{margin-left:auto;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.gen-mini:hover{background:#f3f3f3}
+.gen-mini:disabled{opacity:.6;cursor:default}
 
 /* ============ Todo 页 ============ */
 .todo-input-wrap{
@@ -642,6 +648,7 @@ nav.tabbar button .badge{
       <div class="record-actions">
         <button class="btn-upload" id="btn-upload-img" title="上传图片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="9" cy="11" r="1.8"/><path d="M3 16l4.5-3.5L12 15l3-2.5L21 16"/></svg></button>
         <button class="btn-primary" id="btn-save">保存这条</button>
+        <button class="btn-ghost" id="btn-cancel-edit" style="display:none">取消</button>
         <input type="file" id="file-img" accept="image/*" multiple style="display:none" />
       </div>
     </div>
@@ -846,6 +853,7 @@ nav.tabbar button .badge{
   };
   const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   const imageStore = []; // 当前编辑中的待上传图片 base64
+  let editingRecord = null; // 记录编辑态：{id, date} 或 null
 
   /* ---------- 状态 ---------- */
   const state = {
@@ -1066,6 +1074,7 @@ nav.tabbar button .badge{
 
   /* ---------- 记录页渲染 ---------- */
   function renderRecord(){
+    if(editingRecord) cancelEditRecord();
     const d = new Date(state.curDate + "T00:00:00");
     const isToday = state.curDate === todayKey();
     const dateLabel = isToday ? "今天" : `${d.getMonth()+1}月${d.getDate()}日`;
@@ -1091,7 +1100,10 @@ nav.tabbar button .badge{
           <div class="meta">
             <span>${new Date(r.time).toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"})}</span>
             ${(r.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}
-            <span class="del" data-del="${r.id}" style="margin-left:auto">✕</span>
+            <span class="rec-actions" style="margin-left:auto;display:flex;gap:14px">
+              <span class="edit" data-edit-rec="${r.id}" title="修改">✎</span>
+              <span class="del" data-del="${r.id}" title="删除">✕</span>
+            </span>
           </div>
         </div>
       </div>
@@ -1105,6 +1117,39 @@ nav.tabbar button .badge{
         save(); render(); toast("已删除");
       };
     });
+    // 绑定修改
+    $$("[data-edit-rec]", list).forEach(b=>{
+      b.onclick = ()=> startEditRecord(b.dataset.editRec);
+    });
+  }
+
+  /* ---------- 记录编辑（原地修改） ---------- */
+  function startEditRecord(id){
+    const rec = getRecords(state.curDate).find(r=>r.id===id);
+    if(!rec) return;
+    editingRecord = { id, date: state.curDate };
+    const ta = $("#record-input");
+    ta.value = rec.text || "";
+    state.selectedTags = new Set(rec.tags || []);
+    $$("#tag-row .chip").forEach(c=> c.classList.toggle("on", state.selectedTags.has(c.dataset.tag)));
+    imageStore.length = 0;
+    (rec.images||[]).forEach(b=> imageStore.push(b));
+    renderImgPreview();
+    $("#btn-save").textContent = "保存修改";
+    const cb = $("#btn-cancel-edit"); if(cb) cb.style.display = "";
+    ta.focus();
+  }
+  function cancelEditRecord(){
+    editingRecord = null;
+    const ta = $("#record-input");
+    ta.value = "";
+    state.selectedTags.clear();
+    $$("#tag-row .chip").forEach(c=> c.classList.remove("on"));
+    imageStore.length = 0;
+    renderImgPreview();
+    $("#btn-save").textContent = "保存这条";
+    const cb = $("#btn-cancel-edit"); if(cb) cb.style.display = "none";
+    ta.blur();
   }
 
   /* ---------- 总结复盘渲染 ---------- */
@@ -1198,7 +1243,7 @@ nav.tabbar button .badge{
       }).join("");
       html += `
         <div class="card">
-          <div class="card-title"><span class="dot"></span>${sumTag} <span class="subtle">${mCur}月${dCurN}日</span></div>
+          <div class="card-title"><span class="dot"></span>${sumTag} <span class="subtle">${mCur}月${dCurN}日</span><button class="gen-mini" data-gen-summary="${curKey}">✨ 生成</button></div>
           ${sumHtml ? `<ul class="summary-list work">${sumHtml}</ul>` : `<div class="hint subtle" style="padding:4px 0">暂无总结，点下方按钮添加</div>`}
           <button class="add-link" data-add="summary" data-date="${curKey}">＋ 添加一条总结</button>
           <div class="card-title" style="margin-top:18px"><span class="dot" style="background:#1a1a1a"></span>复盘</div>
@@ -1209,7 +1254,7 @@ nav.tabbar button .badge{
     } else {
       html += `
         <div class="card">
-          <div class="card-title"><span class="dot"></span>${sumTag}</div>
+          <div class="card-title"><span class="dot"></span>${sumTag}<button class="gen-mini" data-gen-summary="${curKey}">✨ 生成</button></div>
           <div class="summary-empty"><div class="ico">✨</div><div class="hint">这一天还没有总结/复盘<br>可手动添加，或先去「记录」再生成</div></div>
           <button class="add-link" data-add="summary" data-date="${curKey}">＋ 添加一条总结</button>
           <button class="add-link" data-add="review" data-date="${curKey}">＋ 添加一条复盘</button>
@@ -1235,6 +1280,7 @@ nav.tabbar button .badge{
     bindSummaryDelete(c);
     bindAddSummary(c);
     bindBtnGenWeek(c);
+    $$("[data-gen-summary]", c).forEach(b=>{ b.onclick = ()=> generateDaySummary(b.dataset.genSummary); });
     $$(".recent-chip", c).forEach(ch=>{ ch.onclick = ()=>{ state.curDate = ch.dataset.jump; renderSummary(); }; });
     $$("[data-del-rec]", c).forEach(b=>{
       b.onclick = ()=>{
@@ -1541,6 +1587,59 @@ nav.tabbar button .badge{
   }
 
   /* ---------- 周报 AI 进展提取 ---------- */
+  /* ---------- AI 生成「今日总结 / 复盘」 ---------- */
+  const SUM_CATS = ["work","thinking","feel","grow"];
+  const REV_CATS = ["achievement","idea","body","emotion","decision"];
+  function extractJson(s){
+    if(!s) return null;
+    try{ return JSON.parse(s); }catch(e){}
+    const m = s.match(/\{[\s\S]*\}/);
+    if(m){ try{ return JSON.parse(m[0]); }catch(e){} }
+    return null;
+  }
+  async function generateDaySummary(date){
+    const cfg = state.data.config || {};
+    const recs = getRecords(date);
+    if(!recs.length){ toast("这天还没有记录，先去「记录」页写点什么吧"); return; }
+    const NL = String.fromCharCode(10);
+    const recText = recs.slice().sort((a,b)=>a.time-b.time).map((r,i)=> (i+1)+". "+(r.text||"").trim()).join(NL);
+    if(!cfg.key){ toast("请先在「设置」里填写 AI API Key（DeepSeek）再使用生成"); return; }
+    const btn = document.querySelector('[data-gen-summary="'+date+'"]');
+    const oldHtml = btn ? btn.innerHTML : "";
+    if(btn){ btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 生成中…'; }
+    try{
+      const sys = "你是用户的每日复盘助手。下面是用户某一天的随手记录（按条目，序号开头）。请据此生成："
+        + "1) summary（今日总结）：从 工作(work)/思考(thinking)/感受(feel)/成长(grow) 四个维度提炼，每条带 cat（取 work/thinking/feel/grow 之一）和 text。"
+        + "2) review（今日复盘）：从 小成就(achievement)/灵感碎片(idea)/身体信号(body)/情绪波动(emotion)/决策与结果(decision) 五个维度，每条带 cat（取对应英文之一）和 text。"
+        + "要求：严格基于记录原文，口语化、不编造；每条 text 不超过55字；summary 3-5 条，review 2-4 条。"
+        + "只返回 JSON，不要代码块、不要多余文字，格式："
+        + '{"summary":[{"cat":"work","text":"..."}],"review":[{"cat":"achievement","text":"..."}]}';
+      const user = "【今日记录】" + NL + recText;
+      let baseurl = (cfg.baseurl || "https://api.deepseek.com/v1");
+      if(baseurl.charAt(baseurl.length-1) === "/") baseurl = baseurl.slice(0, -1);
+      const resp = await fetch(baseurl + "/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.key },
+        body: JSON.stringify({ model: cfg.model || "deepseek-chat", temperature: 0.5, messages: [ { role: "system", content: sys }, { role: "user", content: user } ] })
+      });
+      if(!resp.ok){ throw new Error("API " + resp.status); }
+      const data = await resp.json();
+      const content = (data.choices?.[0]?.message?.content || "").trim();
+      const parsed = extractJson(content);
+      if(!parsed || !Array.isArray(parsed.summary)) throw new Error("AI 返回格式无法解析");
+      const summary = parsed.summary.filter(x=>x && x.text).map(x=>({ cat: SUM_CATS.indexOf(x.cat)>=0 ? x.cat : "work", text: String(x.text).slice(0,200) }));
+      const review = (parsed.review || []).filter(x=>x && x.text).map(x=>({ cat: REV_CATS.indexOf(x.cat)>=0 ? x.cat : "achievement", text: String(x.text).slice(0,200) }));
+      if(!summary.length) throw new Error("AI 未生成任何总结");
+      state.data.summary = state.data.summary || {};
+      state.data.summary[date] = { summary: summary, review: review, generatedAt: Date.now() };
+      save(); renderSummary(); toast("已生成今日总结 ✨");
+    }catch(e){
+      console.warn("generateDaySummary 失败", e);
+      toast("生成失败：" + (e && e.message ? e.message : e));
+      if(btn){ btn.disabled = false; btn.innerHTML = oldHtml; }
+    }
+  }
+
   async function genAIProgress(reviewText){
     const cfg = state.data.config || {};
     const fallback = ()=>{
@@ -2030,10 +2129,27 @@ nav.tabbar button .badge{
       };
     });
     // 保存记录
+    $("#btn-cancel-edit").onclick = cancelEditRecord;
     $("#btn-save").onclick = ()=>{
       const ta = $("#record-input");
       const text = ta.value.trim();
       if(!text){ toast("写点什么再保存吧"); return; }
+      // 编辑模式：原地更新已有记录
+      if(editingRecord){
+        const arr = state.data.records[editingRecord.date] || [];
+        const rec = arr.find(r=>r.id===editingRecord.id);
+        if(rec){
+          rec.text = text;
+          rec.tags = [...state.selectedTags];
+          rec.images = imageStore.length ? imageStore.slice() : undefined;
+          rec.time = Date.now();
+        }
+        cancelEditRecord();
+        save(); render(); updateBadges();
+        toast("已保存修改 ✓");
+        return;
+      }
+      // 新增模式
       const arr = state.data.records[state.curDate] || (state.data.records[state.curDate]=[]);
       const images = imageStore.splice(0);
       arr.push({ id:uid(), text, tags:[...state.selectedTags], images:images.length?images:undefined, time:Date.now() });
